@@ -1,6 +1,7 @@
 from __future__ import  (division, print_function)
 
 from yahmm.yahmm import *
+import yahmm.yahmm
 from nose.tools import with_setup
 import random
 
@@ -42,14 +43,10 @@ def teardown_model():
 @with_setup(setup_model, teardown_model)
 def test_sampling():
 
-    sample = model_b.sample()
+    # Make sure random works right.
+    sample = model_b.sample(seed=1)
 
     print(sample)
-    
-    state = random.random()
-    print(state) # 0.982785476038
-    
-    assert(state == 0)
     
     assert all([val in sample for val in [0.515908805880605, 1.0112747213686086,
         1.2837985890347725, 0.9765969541523558, 1.4081128851953353,

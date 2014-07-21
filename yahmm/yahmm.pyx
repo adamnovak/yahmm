@@ -60,6 +60,23 @@ cdef inline double pair_lse( double x, double y ):
 		return x + clog( cexp( y-x ) + 1 )
 	return y + clog( cexp( x-y ) + 1 )
 
+def seed(random_seed):
+	''' 
+	Seed the random number generator that we are actually using. Messing
+	about with the built-in random Python module from Python code may not
+	necessarily correctly talk to the RNG that cython code is actually using.
+	'''
+	
+	# Pass the call to compiled code.
+	_seed(random_seed)
+
+cdef _seed(int random_seed):
+	''' 
+	Actually do the seeding.
+	'''
+	
+	random.seed(random_seed)
+
 # Useful python-based array-intended operations
 def log(value):
 	"""
@@ -312,7 +329,7 @@ cdef class NormalDistribution(Distribution):
 				std = 0
 		else:
 			# Only one data point, can't update std
-			std = self.parameters[1]    
+			std = self.parameters[1]	
 		
 		# Enforce min std
 		std = max( numpy.array([std, min_std]) )
@@ -519,7 +536,7 @@ cdef class GammaDistribution(Distribution):
 		rate = 1.0 / (1.0 / (shape * weights.sum()) * items.dot(weights).sum())
 
 		# Set the estimated parameters
-		self.parameters = [shape, rate]    
+		self.parameters = [shape, rate]	
 
 cdef class InverseGammaDistribution(GammaDistribution):
 	"""
@@ -614,7 +631,7 @@ cdef class DiscreteDistribution(Distribution):
 		else:
 			if pseudocounts:
 				return pseudocounts
-			return NEGINF    
+			return NEGINF	
 			
 	def sample(self):
 		"""
@@ -1595,9 +1612,9 @@ cdef class Model(object):
 
 		# Take the cumulative sum so that we can associat
 		self.in_edge_count = numpy.cumsum(self.in_edge_count, 
-            dtype=numpy.int32)
+			dtype=numpy.int32)
 		self.out_edge_count = numpy.cumsum(self.out_edge_count, 
-            dtype=numpy.int32 )
+			dtype=numpy.int32 )
 
 		# Now we go through the edges again in order to both fill in the
 		# transition probability matrix, and also to store the indices sorted
@@ -1646,7 +1663,7 @@ cdef class Model(object):
 			raise SyntaxError( "Model.end has been deleted, leaving the \
 				model with no end. Please ensure it has an end." )
 
-	def sample( self, length=0, path=False ):
+	def sample( self, length=0, path=False, seed=-1 ):
 		"""
 		Generate a sequence from the model. Returns the sequence generated, as a
 		list of emitted items. The model must have been baked first in order to 
@@ -1666,14 +1683,28 @@ cdef class Model(object):
 		will just return the path. Note that the path length may not be the same
 		length as the samples, as it will return silent states it visited, but
 		they will not generate an emission.
+		
+		If seed is any integer other than -1, seed the random number generator 
+		with the given seed before sampling the sequence. Cython is strange 
+		about RNG state, so if you want to get reproducible samples out of this 
+		function, you need to pass a seed. The relationship between the output 
+		of this function and the Python random module state that the caller sees
+		is undefined.
+		
 		"""
 		
-		return self._sample( length, path )
+		return self._sample( length, path, seed )
 
-	cdef list _sample( self, int length, int path ):
+	cdef list _sample( self, int length, int path, int seed ):
 		"""
 		Perform a run of sampling.
 		"""
+
+		if seed != -1:
+			# Apply the random seed here, where we know we are working in C. The
+			# random module state appears to vary arbitrarily across the 
+			# C/Python interface.
+			random.seed(seed)
 
 		cdef int i, j, k, l, li, m=len(self.states)
 		cdef double cumulative_probability
@@ -1831,7 +1862,7 @@ cdef class Model(object):
 				e[k, i] = self.states[i].distribution.log_probability(
 					sequence[k] ) + self.state_weights[i]
 
-		# We must start in the start state, having emitted 0 symbols        
+		# We must start in the start state, having emitted 0 symbols		
 		for i in xrange(m):
 			f[0, i] = NEGINF
 		f[0, self.start_index] = 0.
@@ -3072,7 +3103,7 @@ cdef class Model(object):
 			
 		Returns the log of the "score" under the *previous* set of parameters. 
 		The score is the sum of the likelihoods of all the sequences.
-		"""        
+		"""		
 
 		cdef double [:,:] transition_log_probabilities 
 		cdef double [:,:] expected_transitions, e, f, b
