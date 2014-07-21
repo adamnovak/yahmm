@@ -60,23 +60,6 @@ cdef inline double pair_lse( double x, double y ):
 		return x + clog( cexp( y-x ) + 1 )
 	return y + clog( cexp( x-y ) + 1 )
 
-def seed(random_seed):
-	''' 
-	Seed the random number generator that we are actually using. Messing
-	about with the built-in random Python module from Python code may not
-	necessarily correctly talk to the RNG that cython code is actually using.
-	'''
-	
-	# Pass the call to compiled code.
-	_seed(random_seed)
-
-cdef _seed(int random_seed):
-	''' 
-	Actually do the seeding.
-	'''
-	
-	random.seed(random_seed)
-
 # Useful python-based array-intended operations
 def log(value):
 	"""
@@ -1663,7 +1646,7 @@ cdef class Model(object):
 			raise SyntaxError( "Model.end has been deleted, leaving the \
 				model with no end. Please ensure it has an end." )
 
-	def sample( self, length=0, path=False, seed=-1 ):
+	def sample( self, length=0, path=False ):
 		"""
 		Generate a sequence from the model. Returns the sequence generated, as a
 		list of emitted items. The model must have been baked first in order to 
@@ -1684,27 +1667,19 @@ cdef class Model(object):
 		length as the samples, as it will return silent states it visited, but
 		they will not generate an emission.
 		
-		If seed is any integer other than -1, seed the random number generator 
-		with the given seed before sampling the sequence. Cython is strange 
-		about RNG state, so if you want to get reproducible samples out of this 
-		function, you need to pass a seed. The relationship between the output 
-		of this function and the Python random module state that the caller sees
-		is undefined.
+		The sample does not necessarily have anything to do with the current 
+		state of the Python random module. It is not currently possible to 
+		reliably seed the RNG used to always get consistent random rolls across
+		platforms (or execution environments on the same platform).
 		
 		"""
 		
-		return self._sample( length, path, seed )
+		return self._sample( length, path )
 
-	cdef list _sample( self, int length, int path, int seed ):
+	cdef list _sample( self, int length, int path ):
 		"""
 		Perform a run of sampling.
 		"""
-
-		if seed != -1:
-			# Apply the random seed here, where we know we are working in C. The
-			# random module state appears to vary arbitrarily across the 
-			# C/Python interface.
-			random.seed(seed)
 
 		cdef int i, j, k, l, li, m=len(self.states)
 		cdef double cumulative_probability
