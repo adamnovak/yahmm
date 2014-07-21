@@ -1,6 +1,10 @@
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension
 import numpy as np
+
+# Work around an issue with nose breaking multiprocessing after having run the
+# tests. See <https://groups.google.com/forum/#!msg/nose-users/fnJ-
+# kAUbYHQ/_UsLN786ygcJ>
+import multiprocessing
 
 try:
     from Cython.Distutils import build_ext
@@ -44,5 +48,9 @@ setup(
         "scipy >= 0.13.3",
         "networkx >= 1.8.1",
         "matplotlib >= 1.3.1"
+    ],
+    test_suite = 'nose.collector',
+    tests_require=[
+        "nose >= 1.3.3"
     ],
 )
